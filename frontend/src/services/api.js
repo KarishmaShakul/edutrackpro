@@ -1,7 +1,12 @@
 import axios from 'axios'
 
+const BASE_URL =
+  import.meta.env.MODE === 'development'
+    ? 'http://localhost:5000'
+    : 'https://edutrackpro-backend.onrender.com'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${BASE_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -25,17 +30,20 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
-    // If 401 and not already retrying
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
 
       try {
         const refreshToken = localStorage.getItem('refreshToken')
         if (refreshToken) {
-          const response = await axios.post('/api/user/refresh', { refreshToken })
-          // Backend wraps response in { success, message, data: { token } }
+          const response = await axios.post(
+            `${BASE_URL}/api/user/refresh`,
+            { refreshToken }
+          )
+
           const { token } = response.data.data
           localStorage.setItem('token', token)
+
           originalRequest.headers.Authorization = `Bearer ${token}`
           return api(originalRequest)
         }
