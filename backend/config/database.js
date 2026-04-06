@@ -2,14 +2,18 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/lms_database', {
-      // These options are no longer needed in Mongoose 6+, but included for compatibility
-    });
+    // Check if env variable exists
+    if (!process.env.MONGO_URI) {
+      throw new Error("❌ MONGO_URI not found in .env file");
+    }
+
+    // Connect to MongoDB Atlas
+    const conn = await mongoose.connect(process.env.MONGO_URI);
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     console.log(`📚 Database: ${conn.connection.name}`);
-    
-    // Handle connection events
+
+    // Connection events (optional but good practice)
     mongoose.connection.on('error', (err) => {
       console.error('❌ MongoDB connection error:', err);
     });
@@ -29,7 +33,6 @@ const connectDB = async () => {
       process.exit(0);
     });
 
-    return conn;
   } catch (error) {
     console.error('❌ Error connecting to MongoDB:', error.message);
     process.exit(1);
