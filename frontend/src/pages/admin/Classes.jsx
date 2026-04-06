@@ -12,7 +12,7 @@ export default function AdminClasses() {
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingClass, setEditingClass] = useState(null)
-  const [formData, setFormData] = useState({ classname: '', description: '', teacher: '', semester: '', academicYear: '' })
+  const [formData, setFormData] = useState({ classname: '', description: '', teacher: '', semesterNumber: '', semesterType: '', academicYear: '2025-2026' })
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
@@ -38,10 +38,10 @@ export default function AdminClasses() {
     e.preventDefault()
     try {
       if (editingClass) {
-        await api.put(`/admin/classes/${editingClass._id}`, formData)
+        await api.put(`/admin/class/${editingClass._id}`, formData)
         toast.success('Class updated successfully')
       } else {
-        await api.post('/admin/classes', formData)
+        await api.post('/admin/addclass', formData)
         toast.success('Class created successfully')
       }
       fetchData()
@@ -54,7 +54,7 @@ export default function AdminClasses() {
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this class?')) return
     try {
-      await api.delete(`/admin/classes/${id}`)
+      await api.delete(`/admin/class/${id}`)
       toast.success('Class deleted successfully')
       fetchData()
     } catch (error) {
@@ -68,16 +68,17 @@ export default function AdminClasses() {
       classname: cls.classname,
       description: cls.description || '',
       teacher: cls.teacher?._id || '',
-      semester: cls.semester || '',
-      academicYear: cls.academicYear || ''
-    } : { classname: '', description: '', teacher: '', semester: '', academicYear: '' })
+      semesterNumber: cls.semesterNumber || '',
+      semesterType: cls.semesterType || '',
+      academicYear: cls.academicYear || '2025-2026'
+    } : { classname: '', description: '', teacher: '', semesterNumber: '', semesterType: '', academicYear: '2025-2026' })
     setModalOpen(true)
   }
 
   const closeModal = () => {
     setModalOpen(false)
     setEditingClass(null)
-    setFormData({ classname: '', description: '', teacher: '', semester: '', academicYear: '' })
+    setFormData({ classname: '', description: '', teacher: '', semesterNumber: '', semesterType: '', academicYear: '2025-2026' })
   }
 
   // Filter classes based on search
@@ -137,7 +138,7 @@ export default function AdminClasses() {
       key: 'semester', 
       label: 'Semester',
       render: (row) => (
-        <span className="badge badge-info">{row.semester || 'N/A'}</span>
+        <span className="badge badge-info">{row.semesterNumber ? `Semester ${row.semesterNumber}` : 'N/A'}</span>
       )
     },
     {
@@ -257,13 +258,23 @@ export default function AdminClasses() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Semester</label>
-                <input
-                  type="text"
-                  value={formData.semester}
-                  onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
-                  placeholder="Fall 2024"
-                />
+                <select
+                  value={formData.semesterNumber}
+                  onChange={(e) => {
+                    const number = parseInt(e.target.value) || '';
+                    let type = '';
+                    if (number) {
+                      type = number % 2 === 0 ? 'Even' : 'Odd';
+                    }
+                    setFormData({ ...formData, semesterNumber: number, semesterType: type })
+                  }}
+                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                >
+                  <option value="">Select Semester</option>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                    <option key={num} value={num}>Semester {num}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Academic Year</label>
@@ -272,7 +283,7 @@ export default function AdminClasses() {
                   value={formData.academicYear}
                   onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
                   className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
-                  placeholder="2024"
+                  placeholder="2025-2026"
                 />
               </div>
             </div>

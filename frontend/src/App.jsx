@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
+import Logo from './components/Logo'
 
 // Pages
 import Login from './pages/Login'
@@ -9,6 +10,7 @@ import AdminStudents from './pages/admin/Students'
 import AdminClasses from './pages/admin/Classes'
 import TeacherDashboard from './pages/teacher/Dashboard'
 import TeacherClasses from './pages/teacher/Classes'
+import TeacherAttendance from './pages/teacher/Attendance'
 import TeacherQuizzes from './pages/teacher/Quizzes'
 import TeacherAssignments from './pages/teacher/Assignments'
 import TeacherMaterials from './pages/teacher/Materials'
@@ -29,8 +31,10 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   
   if (loading) {
     return (
-      <div className="min-h-screen bg-dark-300 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="animate-pulse flex justify-center">
+          <Logo type="full" className="h-14" />
+        </div>
       </div>
     )
   }
@@ -65,6 +69,7 @@ function App() {
         {/* Teacher Routes */}
         <Route path="/teacher" element={<ProtectedRoute allowedRoles={['teacher']}><TeacherDashboard /></ProtectedRoute>} />
         <Route path="/teacher/classes" element={<ProtectedRoute allowedRoles={['teacher']}><TeacherClasses /></ProtectedRoute>} />
+        <Route path="/teacher/attendance" element={<ProtectedRoute allowedRoles={['teacher']}><TeacherAttendance /></ProtectedRoute>} />
         <Route path="/teacher/quizzes" element={<ProtectedRoute allowedRoles={['teacher']}><TeacherQuizzes /></ProtectedRoute>} />
         <Route path="/teacher/assignments" element={<ProtectedRoute allowedRoles={['teacher']}><TeacherAssignments /></ProtectedRoute>} />
         <Route path="/teacher/materials" element={<ProtectedRoute allowedRoles={['teacher']}><TeacherMaterials /></ProtectedRoute>} />

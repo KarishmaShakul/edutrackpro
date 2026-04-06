@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
-import { FiMail, FiLock, FiLogIn, FiBook, FiShield, FiUsers, FiAward, FiEye, FiEyeOff } from 'react-icons/fi'
+import { FiMail, FiLock, FiLogIn, FiShield, FiUsers, FiAward, FiBook, FiEye, FiEyeOff } from 'react-icons/fi'
+import Logo from '../components/Logo'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -14,20 +15,14 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
     if (!email || !password) {
       toast.error('Please enter both email and password')
       return
     }
-    
     setIsLoading(true)
-
     try {
       const user = await login(email, password)
-      toast.success(`Welcome back, ${user.name}!`, {
-        icon: '🎓',
-        duration: 3000
-      })
+      toast.success(`Welcome back, ${user.name}!`, { icon: '🎓', duration: 3000 })
       navigate(`/${user.role}`)
     } catch (error) {
       toast.error(error.response?.data?.message || 'Invalid credentials. Please try again.')
@@ -37,30 +32,19 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-950 to-indigo-950/30 flex">
-      {/* Left Side - Clean Branding */}
+    <div className="min-h-screen bg-slate-950 flex">
+      {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-[55%] relative bg-gradient-to-b from-slate-950 via-indigo-950/25 to-slate-950 border-r border-slate-800/60">
-        {/* Subtle Background Pattern */}
         <div className="absolute inset-0 opacity-[0.02]" style={{
           backgroundImage: `radial-gradient(circle at 2px 2px, #fff 1px, transparent 0)`,
           backgroundSize: '40px 40px'
         }} />
-
-        {/* Content */}
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div>
-            {/* Logo */}
-            <div className="flex items-center gap-4 mb-16">
-              <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center">
-                <FiBook className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold">EduTrackPro</h1>
-                <p className="text-sm text-gray-400">Academic Management Platform</p>
-              </div>
+            {/* EXACT same Logo component as Layout.jsx */}
+            <div className="mb-16 h-10">
+              <Logo type="full" className="h-10" />
             </div>
-            
-            {/* Main Heading */}
             <div className="max-w-lg">
               <h2 className="text-4xl font-bold text-white leading-tight mb-4">
                 Empowering Education<br />
@@ -98,7 +82,6 @@ export default function Login() {
                 <p className="text-slate-500 text-sm">SE Courses</p>
               </div>
             </div>
-            
             <div className="flex items-center gap-3 text-slate-600 text-sm">
               <FiShield className="w-4 h-4" />
               <span>© 2025 EduTrackPro. All rights reserved.</span>
@@ -110,24 +93,24 @@ export default function Login() {
       {/* Right Side - Login Form */}
       <div className="w-full lg:w-[45%] flex items-center justify-center p-6 sm:p-8 lg:p-12">
         <div className="w-full max-w-md">
-          {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center gap-3 mb-10 justify-center">
-            <div className="w-11 h-11 bg-indigo-500 rounded-xl flex items-center justify-center">
-              <FiBook className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">EduTrackPro</h1>
-              <p className="text-sm text-gray-400">Academic Management Platform</p>
-            </div>
+
+          {/* Mobile Logo - same ETP logo */}
+          <div className="lg:hidden flex items-center justify-center mb-10 h-10">
+            <Logo type="full" className="h-10" />
           </div>
 
-          <div className="bg-gradient-to-b from-slate-950 to-slate-900 rounded-2xl p-8 sm:p-10 border border-slate-800/60">
+          <div className="bg-gradient-to-b from-slate-900 to-slate-950 rounded-2xl p-8 sm:p-10 border border-slate-800/60">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-semibold text-white mb-2">Welcome Back</h2>
               <p className="text-slate-500">Sign in to access your dashboard</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
+              {/* Honeypot to prevent Chrome autofill */}
+              <input type="text" name="username" tabIndex="-1" style={{position:'absolute',left:'-9999px',opacity:0,height:0}} readOnly />
+              <input type="password" name="password_fake" tabIndex="-1" style={{position:'absolute',left:'-9999px',opacity:0,height:0}} readOnly />
+
+              {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-2">
                   Email Address
@@ -135,16 +118,20 @@ export default function Login() {
                 <div className="relative group">
                   <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-indigo-400 transition-colors" />
                   <input
-                    type="email"
+                    type="text"
+                    inputMode="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
+                    placeholder="Enter your email address"
+                    autoComplete="off"
+                    name="edu_login_email"
                     className="w-full pl-11 pr-4 py-3.5 bg-[#1a1a24] border border-[#2a2a3a] rounded-lg text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all duration-200"
                     required
                   />
                 </div>
               </div>
 
+              {/* Password */}
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-2">
                   Password
@@ -156,6 +143,8 @@ export default function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
+                    autoComplete="new-password"
+                    name="edu_login_password"
                     className="w-full pl-11 pr-12 py-3.5 bg-[#1a1a24] border border-[#2a2a3a] rounded-lg text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all duration-200"
                     required
                   />
@@ -192,7 +181,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Footer for Mobile */}
           <p className="lg:hidden text-center text-slate-700 text-xs mt-6">
             © 2025 EduTrackPro – Academic Management Platform
           </p>

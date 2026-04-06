@@ -4,7 +4,7 @@ import DataTable from '../../components/DataTable'
 import Modal from '../../components/Modal'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
-import { FiPlus, FiEdit2, FiTrash2, FiUserCheck, FiMail, FiCalendar, FiUser, FiBook, FiSearch } from 'react-icons/fi'
+import { FiPlus, FiEdit2, FiTrash2, FiUserCheck, FiMail, FiCalendar, FiUser, FiBook, FiSearch, FiEye, FiEyeOff, FiLock } from 'react-icons/fi'
 
 export default function AdminStudents() {
   const [students, setStudents] = useState([])
@@ -13,9 +13,12 @@ export default function AdminStudents() {
   const [editingStudent, setEditingStudent] = useState(null)
   const [formData, setFormData] = useState({ name: '', email: '', password: '' })
   const [searchQuery, setSearchQuery] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
-    fetchStudents()
+    fetchStudents(true)
+    const interval = setInterval(() => fetchStudents(false), 30000)
+    return () => clearInterval(interval)
   }, [])
 
   const fetchStudents = async (showLoading = true) => {
@@ -64,6 +67,7 @@ export default function AdminStudents() {
   const openModal = (student = null) => {
     setEditingStudent(student)
     setFormData(student ? { name: student.name, email: student.email, password: '' } : { name: '', email: '', password: '' })
+    setShowPassword(false)
     setModalOpen(true)
   }
 
@@ -71,17 +75,17 @@ export default function AdminStudents() {
     setModalOpen(false)
     setEditingStudent(null)
     setFormData({ name: '', email: '', password: '' })
+    setShowPassword(false)
   }
 
-  // Filter students based on search
-  const filteredStudents = students.filter(s => 
+  const filteredStudents = students.filter(s =>
     s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.email?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const columns = [
-    { 
-      key: 'name', 
+    {
+      key: 'name',
       label: 'Student',
       render: (row) => (
         <div className="flex items-center gap-3">
@@ -95,8 +99,8 @@ export default function AdminStudents() {
         </div>
       )
     },
-    { 
-      key: 'assignedClasses', 
+    {
+      key: 'assignedClasses',
       label: 'Enrolled',
       render: (row) => (
         <div className="flex items-center gap-2">
@@ -105,8 +109,8 @@ export default function AdminStudents() {
         </div>
       )
     },
-    { 
-      key: 'createdAt', 
+    {
+      key: 'createdAt',
       label: 'Joined',
       render: (row) => (
         <div className="flex items-center gap-2 text-slate-400">
@@ -120,14 +124,14 @@ export default function AdminStudents() {
       label: 'Actions',
       render: (row) => (
         <div className="flex gap-2">
-          <button 
-            onClick={() => openModal(row)} 
+          <button
+            onClick={() => openModal(row)}
             className="w-9 h-9 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 flex items-center justify-center text-indigo-400 transition-all duration-200"
           >
             <FiEdit2 className="w-4 h-4" />
           </button>
-          <button 
-            onClick={() => handleDelete(row._id)} 
+          <button
+            onClick={() => handleDelete(row._id)}
             className="w-9 h-9 rounded-xl bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center text-red-400 transition-all duration-200"
           >
             <FiTrash2 className="w-4 h-4" />
@@ -181,10 +185,10 @@ export default function AdminStudents() {
           </div>
         ) : (
           <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-800/50 overflow-hidden">
-            <DataTable 
-              columns={columns} 
-              data={filteredStudents} 
-              emptyMessage="No students found" 
+            <DataTable
+              columns={columns}
+              data={filteredStudents}
+              emptyMessage="No students found"
             />
           </div>
         )}
@@ -206,6 +210,7 @@ export default function AdminStudents() {
                 />
               </div>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
               <div className="relative">
@@ -216,26 +221,42 @@ export default function AdminStudents() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                   placeholder="example@edutrackpro.com"
+                  autoComplete="off"
                   required
                 />
               </div>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 {editingStudent ? 'New Password (leave blank to keep current)' : 'Password'}
               </label>
-              <input
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                placeholder="••••••••"
-                required={!editingStudent}
-              />
+              <div className="relative">
+                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full pl-12 pr-12 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  required={!editingStudent}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
+
             <div className="flex gap-3 pt-4">
               <button type="button" onClick={closeModal} className="btn-secondary flex-1">Cancel</button>
-              <button type="submit" className="btn-primary flex-1">{editingStudent ? 'Update Student' : 'Add Student'}</button>
+              <button type="submit" className="btn-primary flex-1">
+                {editingStudent ? 'Update Student' : 'Add Student'}
+              </button>
             </div>
           </form>
         </Modal>

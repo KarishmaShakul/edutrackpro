@@ -1,8 +1,5 @@
+const { Class, Assignment, Marks } = require('../models');
 const userStatsService = require('./userStatsService');
-const classStatsService = require('./classStatsService');
-const attendanceStatsService = require('./attendanceStatsService');
-const marksStatsService = require('./marksStatsService');
-const assignmentStatsService = require('./assignmentStatsService');
 
 const getRelativeTime = (date) => {
   const d = date ? new Date(date) : null;
@@ -19,29 +16,91 @@ const getRelativeTime = (date) => {
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-/**
- * Dashboard = Aggregation layer only.
- * Calls module stats services and combines; no direct DB computation here.
- */
+const calculateLiveAttendanceAverage = async () => {
+  const classes = await Class.find({ isActive: true })
+    .select('attendanceRecords students attendanceAverage');
+  
+  if (!classes.length) return 0;
+  
+  let totalPresent = 0;
+  let totalRecords = 0;
+  
+  classes.forEach(cls => {
+    (cls.attendanceRecords || []).forEach(dayRecord => {
+      (dayRecord.records || []).forEach(r => {
+        totalRecords++;
+        if (r.status === 'present' || r.status === 'late') {
+          totalPresent++;
+        }
+      });
+    });
+  });
+  
+  if (totalRecords === 0) {
+    const avg = classes.reduce((sum, c) => sum + (c.attendanceAverage || 0), 0) / classes.length;
+    return Math.round(avg * 10) / 10;
+  }
+  
+  return Math.round((totalPresent / totalRecords) * 1000) / 10;
+};
+
+const getSubjectPerformance = async () => {
+  const classes = await Class.find({ isActive: true })
+    .select('classname _id students');
+  
+  const performance = [];
+  
+  for (const cls of classes) {
+    const marks = await Marks.find({ classId: cls._id })
+      .select('marks totalMarks studentId');
+    
+    if (!marks.length) continue;
+    
+    const avgMarks = marks.reduce((sum, m) => sum + (m.marks / m.totalMarks * 100), 0) / marks.length;
+    const passed = marks.filter(m => (m.marks / m.totalMarks * 100) >= 50).length;
+    const passPercentage = (passed / marks.length) * 100;
+    
+    performance.push({
+      subjectName: cls.classname,
+      averageMarks: Math.round(avgMarks * 10) / 10,
+      passPercentage: Math.round(passPercentage * 10) / 10,
+      totalStudents: cls.students.length,
+      marksCount: marks.length
+    });
+  }
+  
+  return performance;
+};
+
 const getDashboardData = async () => {
-  const [userStats, classStats, attendanceStats, marksStats, assignmentStats] = await Promise.all([
-    userStatsService.getUserStats(),
-    classStatsService.getClassStats(),
-    attendanceStatsService.getAttendanceStats(),
-    marksStatsService.getMarksStats(),
-    assignmentStatsService.getAssignmentStats()
-  ]);
+  const userStats = await userStatsService.getUserStats();
+
+  const activeCourses = await Class.countDocuments({ isActive: true });
+  const averageAttendance = await calculateLiveAttendanceAverage();
+  const performance = await getSubjectPerformance();
+
+  const classesWithoutTeacher = await Class.find({ 
+    isActive: true, 
+    $or: [{ teacher: null }, { teacher: { $exists: false } }]
+  }).select('classname createdAt');
+
+  const assignmentsPastDue = await Assignment.find({
+    isPublished: true,
+    dueDate: { $lt: new Date() }
+  }).select('title dueDate classId');
+
+  const lowAttendanceClasses = await Class.find({
+    isActive: true,
+    attendanceAverage: { $lt: 75 }
+  }).select('classname attendanceAverage');
 
   const totals = {
     students: userStats.totalStudents,
     faculty: userStats.totalFaculty,
     admins: userStats.totalAdmins,
     activeUsers: userStats.activeUsers,
-    totalClasses: classStats.totalClasses,
-    activeCourses: classStats.activeCourses,
-    averageAttendance: attendanceStats.averageAttendance,
-    pendingAssignments: assignmentStats.pendingAssignments,
-    overallPassRate: marksStats.overallPassRate
+    activeCourses: activeCourses,
+    averageAttendance: averageAttendance
   };
 
   const userDistribution = {
@@ -50,27 +109,28 @@ const getDashboardData = async () => {
     admins: userStats.totalAdmins
   };
 
-  const performance = marksStats.subjectPerformance || [];
-
   const alerts = {
     classesWithoutTeacher: {
-      count: classStats.classesWithoutTeacher?.length ?? 0,
-      items: (classStats.classesWithoutTeacher || []).map((c) => ({
+      count: classesWithoutTeacher.length,
+      items: classesWithoutTeacher.map(c => ({
         classname: c.classname,
         timeAgo: getRelativeTime(c.createdAt)
       }))
     },
     assignmentsPastDue: {
-      count: assignmentStats.overdueAssignments?.length ?? 0,
-      items: (assignmentStats.overdueAssignments || []).map((a) => ({
+      count: assignmentsPastDue.length,
+      items: assignmentsPastDue.map(a => ({
         title: a.title,
         dueDate: a.dueDate,
         timeAgo: getRelativeTime(a.dueDate)
       }))
     },
     lowAttendance: {
-      count: attendanceStats.lowAttendanceCount ?? 0,
-      items: attendanceStats.lowAttendanceItems || []
+      count: lowAttendanceClasses.length,
+      items: lowAttendanceClasses.map(c => ({
+        classname: c.classname,
+        attendanceAverage: c.attendanceAverage
+      }))
     }
   };
 

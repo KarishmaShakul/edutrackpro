@@ -20,25 +20,50 @@ export default function AdminDashboard() {
   const [dashboard, setDashboard] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [lastUpdated, setLastUpdated] = useState(null)
 
-  const fetchDashboard = async () => {
-    setLoading(true)
+  const fetchDashboard = async (showLoader = true) => {
+    if (showLoader) setLoading(true)
     setError(null)
     try {
-      const response = await api.get('/admin/dashboard')
-      setDashboard(response.data.data)
+      const [dashRes, classRes] = await Promise.all([
+        api.get('/admin/dashboard'),
+        api.get('/admin/classes')
+      ])
+      
+      const dashData = dashRes.data.data
+      const classes = classRes.data.data?.classes || []
+      
+      if (dashData.totals) {
+        dashData.totals.activeCourses = classes.length
+      }
+      
+      if (classes.length > 0) {
+        const avg = classes.reduce((sum, c) => 
+          sum + (c.attendanceAverage || 0), 0
+        ) / classes.length
+        dashData.totals.averageAttendance = 
+          Math.round(avg * 10) / 10
+      }
+      
+      setDashboard(dashData)
+      setLastUpdated(new Date())
     } catch (e) {
-      setError('Unable to load dashboard. Please check server connection and try again.')
+      if (showLoader) setError('Unable to load dashboard data.')
     } finally {
-      setLoading(false)
+      if (showLoader) setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchDashboard()
-    const onRefresh = () => fetchDashboard()
+    fetchDashboard(true)
+    const onRefresh = () => fetchDashboard(false)
     window.addEventListener('admin-dashboard-refresh', onRefresh)
-    return () => window.removeEventListener('admin-dashboard-refresh', onRefresh)
+    const interval = setInterval(() => fetchDashboard(false), 30000)
+    return () => {
+      window.removeEventListener('admin-dashboard-refresh', onRefresh)
+      clearInterval(interval)
+    }
   }, [])
 
   const MetricCard = ({ title, value, icon: Icon, accentClass }) => (
@@ -140,11 +165,16 @@ export default function AdminDashboard() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end gap-2">
             <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#1e1e2e] bg-[#12121a] text-sm text-slate-300">
               <FiCalendar className="w-4 h-4 text-indigo-400" />
               {formatCurrentDate()}
             </span>
+            {lastUpdated && (
+              <p className="text-xs text-slate-500">
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </p>
+            )}
           </div>
         </div>
 

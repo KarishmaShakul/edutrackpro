@@ -22,7 +22,11 @@ export default function TeacherMarks() {
   }, [])
 
   useEffect(() => {
-    if (selectedClass) fetchMarks()
+    if (selectedClass) {
+      fetchMarks(true)
+      const interval = setInterval(() => fetchMarks(false), 60000)
+      return () => clearInterval(interval)
+    }
   }, [selectedClass])
 
   const fetchClasses = async () => {
@@ -40,8 +44,9 @@ export default function TeacherMarks() {
     }
   }
 
-  const fetchMarks = async () => {
+  const fetchMarks = async (showLoad = true) => {
     try {
+      if (showLoad) setLoading(true)
       const res = await api.get(`/teacher/classes/${selectedClass}/marks`)
       const data = res.data.data || res.data
       setMarks(data.marks || [])
@@ -49,7 +54,9 @@ export default function TeacherMarks() {
       const cls = classes.find(c => c._id === selectedClass)
       setStudents(cls?.students || [])
     } catch (error) {
-      toast.error('Failed to load marks')
+      if (showLoad) toast.error('Failed to load marks')
+    } finally {
+      if (showLoad) setLoading(false)
     }
   }
 

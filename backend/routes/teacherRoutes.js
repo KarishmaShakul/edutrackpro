@@ -22,6 +22,20 @@ router.get('/dashboard', teacherController.getDashboard);
 router.get('/classes', teacherController.getMyClasses);
 
 /**
+ * @route   GET /api/teacher/classes/:classId/attendance
+ * @desc    Get attendance for a specific class on a specific date
+ * @access  Private/Teacher
+ */
+router.get('/classes/:classId/attendance', teacherController.getAttendance);
+
+/**
+ * @route   POST /api/teacher/classes/:classId/attendance
+ * @desc    Mark attendance for a class
+ * @access  Private/Teacher
+ */
+router.post('/classes/:classId/attendance', teacherController.markAttendance);
+
+/**
  * @route   POST /api/teacher/addquiz
  * @desc    Add new quiz
  * @access  Private/Teacher

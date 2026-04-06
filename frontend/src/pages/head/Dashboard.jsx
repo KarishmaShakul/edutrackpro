@@ -13,20 +13,23 @@ export default function HeadDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchDashboard()
+    fetchDashboard(true)
+    const interval = setInterval(() => fetchDashboard(false), 30000)
+    return () => clearInterval(interval)
   }, [])
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = async (showLoad = true) => {
     try {
+      if (showLoad) setLoading(true)
       const response = await api.get('/head/dashboard')
       const data = response.data.data || response.data
       setStats(data.statistics || data.stats)
       setClassPerformance(data.classPerformance || [])
       setTeacherStats(data.teacherStats || [])
     } catch (error) {
-      toast.error('Failed to load dashboard')
+      if (showLoad) toast.error('Failed to load dashboard')
     } finally {
-      setLoading(false)
+      if (showLoad) setLoading(false)
     }
   }
 

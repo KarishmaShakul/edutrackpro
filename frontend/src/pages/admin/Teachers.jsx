@@ -4,7 +4,7 @@ import DataTable from '../../components/DataTable'
 import Modal from '../../components/Modal'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
-import { FiPlus, FiEdit2, FiTrash2, FiUsers, FiMail, FiCalendar, FiUser, FiBook, FiSearch } from 'react-icons/fi'
+import { FiPlus, FiEdit2, FiTrash2, FiUsers, FiMail, FiCalendar, FiUser, FiBook, FiSearch, FiEye, FiEyeOff, FiLock } from 'react-icons/fi'
 
 export default function AdminTeachers() {
   const [teachers, setTeachers] = useState([])
@@ -13,6 +13,7 @@ export default function AdminTeachers() {
   const [editingTeacher, setEditingTeacher] = useState(null)
   const [formData, setFormData] = useState({ name: '', email: '', password: '' })
   const [searchQuery, setSearchQuery] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     fetchTeachers()
@@ -71,6 +72,7 @@ export default function AdminTeachers() {
     setModalOpen(false)
     setEditingTeacher(null)
     setFormData({ name: '', email: '', password: '' })
+    setShowPassword(false)
   }
 
   // Filter teachers based on search
@@ -216,6 +218,7 @@ export default function AdminTeachers() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                   placeholder="example@edutrackpro.com"
+                  autoComplete="off"
                   required
                 />
               </div>
@@ -224,14 +227,25 @@ export default function AdminTeachers() {
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 {editingTeacher ? 'New Password (leave blank to keep current)' : 'Password'}
               </label>
-              <input
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                placeholder="••••••••"
-                required={!editingTeacher}
-              />
+              <div className="relative">
+                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full pl-12 pr-12 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  required={!editingTeacher}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
             <div className="flex gap-3 pt-4">
               <button type="button" onClick={closeModal} className="btn-secondary flex-1">Cancel</button>

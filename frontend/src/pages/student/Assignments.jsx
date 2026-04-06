@@ -10,11 +10,14 @@ export default function StudentAssignments() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchData()
+    fetchData(true)
+    const interval = setInterval(() => fetchData(false), 60000)
+    return () => clearInterval(interval)
   }, [])
 
-  const fetchData = async () => {
+  const fetchData = async (showLoad = true) => {
     try {
+      if (showLoad) setLoading(true)
       const classRes = await api.get('/student/classes')
       const classData = classRes.data.data || classRes.data
       
@@ -28,9 +31,9 @@ export default function StudentAssignments() {
       }
       setAssignments(allAssignments)
     } catch (error) {
-      toast.error('Failed to load assignments')
+      if (showLoad) toast.error('Failed to load assignments')
     } finally {
-      setLoading(false)
+      if (showLoad) setLoading(false)
     }
   }
 

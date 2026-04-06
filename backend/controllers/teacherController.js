@@ -2,6 +2,28 @@ const mongoose = require('mongoose');
 const { User, Class, Quiz, Assignment, Material, Marks } = require('../models');
 const { successResponse, errorResponse, getPagination, getPaginationMeta, calculatePercentage } = require('../utils/helpers');
 
+const calculateAttendanceAverage = (attendanceRecords) => {
+  if (!attendanceRecords || !attendanceRecords.length) return 0;
+  let presentCount = 0;
+  let totalCount = 0;
+  attendanceRecords.forEach(day => {
+    day.records.forEach(r => {
+      totalCount++;
+      if (r.status === 'present' || r.status === 'late') {
+        presentCount++;
+      }
+    });
+  });
+  if (totalCount === 0) return 0;
+  return Math.round((presentCount / totalCount) * 100);
+};
+
+const updateClassAverageMarks = async (classId) => {
+  const summary = await Marks.getClassSummary(classId);
+  const avg = summary.length > 0 ? Math.round(summary[0].averagePercentage) : null;
+  await Class.findByIdAndUpdate(classId, { averageMarks: avg });
+};
+
 /**
  * @desc    Get teacher dashboard
  * @route   GET /api/teacher/dashboard
@@ -64,6 +86,88 @@ const getMyClasses = async (req, res) => {
 
   } catch (error) {
     console.error('Get classes error:', error);
+    return errorResponse(res, 'Server error', 500);
+  }
+};
+
+/**
+ * @desc    Get attendance for a specific class on a specific date
+ * @route   GET /api/teacher/classes/:classId/attendance
+ * @access  Private/Teacher
+ */
+const getAttendance = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const dateQuery = req.query.date;
+
+    if (!dateQuery) {
+      return errorResponse(res, 'Date query parameter is required (YYYY-MM-DD)', 400);
+    }
+
+    const classDoc = await Class.findOne({ _id: classId, teacher: req.user._id })
+      .populate('students', 'name email');
+
+    if (!classDoc) {
+      return errorResponse(res, 'Class not found or not assigned to you', 404);
+    }
+
+    const dayRecord = classDoc.attendanceRecords.find(r => r.date === dateQuery);
+    let recordsForDate = [];
+
+    if (dayRecord) {
+      recordsForDate = dayRecord.records;
+    } else {
+      recordsForDate = classDoc.students.map(s => ({
+        studentId: s._id,
+        status: 'absent'
+      }));
+    }
+
+    return successResponse(res, 'Attendance retrieved', { 
+      students: classDoc.students,
+      attendance: recordsForDate
+    });
+  } catch (error) {
+    console.error('Get attendance error:', error);
+    return errorResponse(res, 'Server error', 500);
+  }
+};
+
+/**
+ * @desc    Mark attendance for a class
+ * @route   POST /api/teacher/classes/:classId/attendance
+ * @access  Private/Teacher
+ */
+const markAttendance = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { date, records } = req.body; 
+
+    if (!date || !records || !Array.isArray(records)) {
+      return errorResponse(res, 'Date and attendance records are required', 400);
+    }
+
+    const classDoc = await Class.findOne({ _id: classId, teacher: req.user._id });
+    if (!classDoc) {
+      return errorResponse(res, 'Class not found or not assigned to you', 404);
+    }
+
+    const recordIndex = classDoc.attendanceRecords.findIndex(r => r.date === date);
+    
+    if (recordIndex >= 0) {
+      classDoc.attendanceRecords[recordIndex].records = records;
+    } else {
+      classDoc.attendanceRecords.push({ date, records });
+    }
+
+    // Recalculate average
+    classDoc.attendanceAverage = calculateAttendanceAverage(classDoc.attendanceRecords);
+    
+    await classDoc.save();
+
+    return successResponse(res, 'Attendance marked successfully', { attendanceAverage: classDoc.attendanceAverage });
+  } catch (error) {
+    console.error('Mark attendance error:', error);
     return errorResponse(res, 'Server error', 500);
   }
 };
@@ -391,6 +495,8 @@ const addMarks = async (req, res) => {
       gradedBy: req.user._id
     });
 
+    await updateClassAverageMarks(classId);
+
     return successResponse(res, 'Marks added successfully', { marks: marksRecord }, 201);
 
   } catch (error) {
@@ -435,6 +541,8 @@ const updateMarks = async (req, res) => {
 
     await marksRecord.save();
 
+    await updateClassAverageMarks(marksRecord.classId);
+
     return successResponse(res, 'Marks updated successfully', { marks: marksRecord });
 
   } catch (error) {
@@ -462,7 +570,11 @@ const deleteMarks = async (req, res) => {
       return errorResponse(res, 'Marks record not found', 404);
     }
 
+    const classId = marksRecord.classId;
+
     await Marks.findByIdAndDelete(marksId);
+
+    await updateClassAverageMarks(classId);
 
     return successResponse(res, 'Marks deleted successfully');
 
@@ -668,5 +780,7 @@ module.exports = {
   getClassStudents,
   viewQuizzesWithSubmissions,
   getQuizById,
-  getMaterials
+  getMaterials,
+  getAttendance,
+  markAttendance
 };

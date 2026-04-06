@@ -12,19 +12,22 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchDashboard()
+    fetchDashboard(true)
+    const interval = setInterval(() => fetchDashboard(false), 30000)
+    return () => clearInterval(interval)
   }, [])
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = async (showLoad = true) => {
     try {
+      if (showLoad) setLoading(true)
       const response = await api.get('/student/dashboard')
       const data = response.data.data || response.data
       setStats(data.statistics || data.stats)
       setClasses(data.classes || [])
     } catch (error) {
-      toast.error('Failed to load dashboard')
+      if (showLoad) toast.error('Failed to load dashboard')
     } finally {
-      setLoading(false)
+      if (showLoad) setLoading(false)
     }
   }
 
@@ -39,7 +42,7 @@ export default function StudentDashboard() {
 
   // Progress data for chart
   const progressData = [
-    { name: 'Progress', value: stats?.averageScore || 78, fill: '#10b981' },
+    { name: 'Progress', value: stats?.averageScore || 0, fill: '#10b981' },
   ]
 
   // Weekly performance data
@@ -91,7 +94,7 @@ export default function StudentDashboard() {
         <div className="dashboard-grid">
           <StatCard 
             title="Enrolled Classes" 
-            value={stats?.classCount || classes.length || 3} 
+            value={stats?.classCount || classes.length || 0} 
             icon={FiBook} 
             color="indigo"
             change={0}
@@ -99,24 +102,24 @@ export default function StudentDashboard() {
           />
           <StatCard 
             title="Pending Quizzes" 
-            value={stats?.pendingQuizzes || 2} 
+            value={stats?.pendingQuizzes || 0} 
             icon={FiCheckSquare} 
             color="green"
             subtitle="Due this week"
           />
           <StatCard 
             title="Pending Assignments" 
-            value={stats?.pendingAssignments || 3} 
+            value={stats?.pendingAssignments || 0} 
             icon={FiFileText} 
             color="purple"
             subtitle="Tasks remaining"
           />
           <StatCard 
             title="Average Score" 
-            value={`${stats?.averageScore || 78}%`} 
+            value={`${stats?.averageScore || 0}%`} 
             icon={FiAward} 
             color="orange"
-            change={5}
+            change={0}
             subtitle="Overall performance"
           />
         </div>
@@ -195,7 +198,7 @@ export default function StudentDashboard() {
                 <FiTarget className="w-6 h-6 text-emerald-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-white">{stats?.completedQuizzes || 8}</p>
+                <p className="text-2xl font-bold text-white">{stats?.completedQuizzes || 0}</p>
                 <p className="text-sm text-slate-400">Quizzes Completed</p>
               </div>
             </div>
@@ -206,7 +209,7 @@ export default function StudentDashboard() {
                 <FiFileText className="w-6 h-6 text-indigo-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-white">{stats?.completedAssignments || 12}</p>
+                <p className="text-2xl font-bold text-white">{stats?.completedAssignments || 0}</p>
                 <p className="text-sm text-slate-400">Assignments Done</p>
               </div>
             </div>
@@ -217,7 +220,7 @@ export default function StudentDashboard() {
                 <FiBookOpen className="w-6 h-6 text-amber-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-white">{stats?.materialsViewed || 24}</p>
+                <p className="text-2xl font-bold text-white">{stats?.materialsViewed || 0}</p>
                 <p className="text-sm text-slate-400">Materials Studied</p>
               </div>
             </div>
@@ -234,17 +237,13 @@ export default function StudentDashboard() {
             <span className="text-sm text-slate-400">{classes.length || 3} Enrolled Classes</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(classes.length > 0 ? classes : [
-              { _id: '1', classname: 'Software Engineering', teacher: { name: 'Rashid Mukhtar' }, semester: 'Fall 2024' },
-              { _id: '2', classname: 'Database Systems', teacher: { name: 'Dr. Amjad Khan' }, semester: 'Fall 2024' },
-              { _id: '3', classname: 'Web Engineering', teacher: { name: 'Prof. Farah Ahmed' }, semester: 'Fall 2024' },
-            ]).map((cls, index) => (
+            {classes.length > 0 ? classes.map((cls, index) => (
               <div key={cls._id} className="group bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-800/50 overflow-hidden hover:border-emerald-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-emerald-500/5">
                 <div className={`h-28 bg-gradient-to-r ${gradients[index % gradients.length]} relative`}>
                   <div className="absolute inset-0 bg-black/20"></div>
                   <div className="absolute bottom-4 left-4">
                     <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-lg text-xs text-white font-medium">
-                      {cls.semester || 'Fall 2024'}
+                      {cls.semesterNumber ? `Semester ${cls.semesterNumber}` : 'N/A'}
                     </span>
                   </div>
                   <div className="absolute top-4 right-4">
@@ -278,7 +277,11 @@ export default function StudentDashboard() {
                   </div>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="col-span-full py-8 text-center bg-slate-800/30 rounded-2xl border border-slate-700/50">
+                <p className="text-slate-400">No classes enrolled yet.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

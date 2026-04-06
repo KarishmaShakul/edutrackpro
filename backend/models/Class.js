@@ -71,9 +71,22 @@ const classSchema = new mongoose.Schema({
     max: 8,
     default: null
   },
+  attendanceRecords: [{
+    date: { type: String, required: true },
+    records: [{
+      studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      status: { type: String, enum: ['present', 'absent', 'late'], default: 'absent' }
+    }]
+  }],
   // Snapshot attendance average for the class (0-100).
-  // This project does not store per-day attendance records yet.
+  // Automatically calculated based on attendanceRecords
   attendanceAverage: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: null
+  },
+  averageMarks: {
     type: Number,
     min: 0,
     max: 100,

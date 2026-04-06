@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import Logo from './Logo'
 import { 
   FiHome, FiUsers, FiBook, FiLogOut, FiMenu, FiX, FiUser,
   FiFileText, FiCheckSquare, FiFolder, FiBarChart2, FiAward, FiBell, FiChevronDown, FiPower
@@ -29,6 +30,7 @@ const roleConfigs = {
     links: [
       { path: '/teacher', icon: FiHome, label: 'Dashboard' },
       { path: '/teacher/classes', icon: FiBook, label: 'My Classes' },
+      { path: '/teacher/attendance', icon: FiUsers, label: 'Attendance' },
       { path: '/teacher/quizzes', icon: FiCheckSquare, label: 'Quizzes' },
       { path: '/teacher/assignments', icon: FiFileText, label: 'Assignments' },
       { path: '/teacher/materials', icon: FiFolder, label: 'Materials' },
@@ -97,14 +99,7 @@ export default function Layout({ children }) {
         {/* Logo Area */}
         <div className="p-5 border-b border-slate-800/60">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 ${config.accentBg} rounded-lg flex items-center justify-center`}>
-                <FiBook className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-base font-semibold text-white">EduTrackPro</h1>
-              </div>
-            </div>
+            <Logo type="full" className="h-8" />
             <button 
               onClick={() => setSidebarOpen(false)}
               className="lg:hidden text-slate-400 hover:text-white p-1"
@@ -164,10 +159,7 @@ export default function Layout({ children }) {
               >
                 <FiMenu className="w-5 h-5" />
               </button>
-              <div className="hidden sm:block">
-                <h2 className="text-base font-medium text-white">Welcome, {user?.name?.split(' ')[0]}</h2>
-                <p className="text-xs text-slate-500">Academic Management Platform</p>
-              </div>
+              <Logo type="icon" className="w-8 h-8 hidden sm:block" />
             </div>
 
             <div className="flex items-center gap-2">
@@ -226,7 +218,7 @@ export default function Layout({ children }) {
         {/* Footer */}
         <footer className="px-6 py-3 border-t border-slate-800/60 bg-gradient-to-r from-slate-950 via-indigo-950/25 to-slate-950">
           <p className="text-center text-[11px] text-slate-600">
-            © 2025 EduTrackPro – Academic Management Platform
+            © 2025 EduTrackPro. All rights reserved.
           </p>
         </footer>
       </div>

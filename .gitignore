@@ -23,9 +23,10 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# IDE
+# IDE / Editor files
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
 
@@ -37,6 +38,6 @@ tmp/
 temp/
 *.tmp
 
-# Package locks (optional - remove if you want to track)
+# Package locks (optional - remove comment if needed)
 # package-lock.json
 # yarn.lock

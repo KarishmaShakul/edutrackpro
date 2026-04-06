@@ -16,11 +16,14 @@ export default function TeacherQuizzes() {
   })
 
   useEffect(() => {
-    fetchData()
+    fetchData(true)
+    const interval = setInterval(() => fetchData(false), 60000)
+    return () => clearInterval(interval)
   }, [])
 
-  const fetchData = async () => {
+  const fetchData = async (showLoad = true) => {
     try {
+      if (showLoad) setLoading(true)
       const [classRes] = await Promise.all([api.get('/teacher/classes')])
       const classData = classRes.data.data || classRes.data
       setClasses(classData.classes || [])
@@ -36,9 +39,9 @@ export default function TeacherQuizzes() {
       }
       setQuizzes(allQuizzes)
     } catch (error) {
-      toast.error('Failed to load data')
+      if (showLoad) toast.error('Failed to load data')
     } finally {
-      setLoading(false)
+      if (showLoad) setLoading(false)
     }
   }
 

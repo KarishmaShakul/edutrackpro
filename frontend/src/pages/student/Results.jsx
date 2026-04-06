@@ -11,19 +11,22 @@ export default function StudentResults() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchResults()
+    fetchResults(true)
+    const interval = setInterval(() => fetchResults(false), 60000)
+    return () => clearInterval(interval)
   }, [])
 
-  const fetchResults = async () => {
+  const fetchResults = async (showLoad = true) => {
     try {
+      if (showLoad) setLoading(true)
       const response = await api.get('/student/results')
       const data = response.data.data || response.data
       setResults(data.marks || [])
       setSummary(data.summary)
     } catch (error) {
-      toast.error('Failed to load results')
+      if (showLoad) toast.error('Failed to load results')
     } finally {
-      setLoading(false)
+      if (showLoad) setLoading(false)
     }
   }
 
