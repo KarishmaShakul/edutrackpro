@@ -9,83 +9,80 @@ const { successResponse, errorResponse, calculatePercentage, calculateStandardDe
  */
 const getDashboard = async (req, res) => {
   try {
-    // Get all classes (head can view all)
-    const classes = await Class.find({ isActive: true })
-      .populate('teacher', 'name email')
-      .populate('students', 'name email')
-      .lean();
-
-    if (!classes.length) {
-      return successResponse(res, 'Dashboard data retrieved', {
-        statistics: {
-          totalClasses: 0,
-          totalStudents: 0,
-          totalTeachers: 0,
-          totalQuizzes: 0,
-          totalAssignments: 0,
-          averageProgress: 0
-        },
-        classes: [],
-        progressData: []
-      });
-    }
-
-    const classIds = classes.map(c => c._id);
-
-    // Get all quizzes and assignments
-    const [quizzes, assignments, teachers] = await Promise.all([
-      Quiz.find({ classId: { $in: classIds } }).lean(),
-      Assignment.find({ classId: { $in: classIds } }).lean(),
-      User.countDocuments({ role: 'teacher' })
+    const [totalTeachers, totalStudents, activeClasses, allMarks, classPerformanceData] = await Promise.all([
+      User.countDocuments({ role: 'teacher' }),
+      User.countDocuments({ role: 'student' }),
+      Class.countDocuments({ isActive: true }),
+      Marks.find().populate('studentId', 'name email').populate('classId', 'classname').lean(),
+      Class.find({ isActive: true }).select('classname')
     ]);
 
-    // Calculate statistics
-    const totalClasses = classes.length;
-    const totalStudents = classes.reduce((sum, cls) => sum + (cls.students?.length || 0), 0);
-    const totalQuizzes = quizzes.length;
-    const totalAssignments = assignments.length;
+    // System Average
+    let avgPerformance = 0;
+    if (allMarks.length > 0) {
+      avgPerformance = allMarks.reduce((sum, m) => sum + m.percentage, 0) / allMarks.length;
+      avgPerformance = parseFloat(avgPerformance.toFixed(2));
+    }
 
-    // Calculate progress for each class
-    const progressData = classes.map(cls => {
-      const classQuizzes = quizzes.filter(q => q.classId.toString() === cls._id.toString());
-      const classAssignments = assignments.filter(a => a.classId.toString() === cls._id.toString());
-
-      const totalSubmissions =
-        classQuizzes.reduce((sum, q) => sum + (q.submissions?.length || 0), 0) +
-        classAssignments.reduce((sum, a) => sum + (a.submissions?.length || 0), 0);
-
-      const totalAssessments = classQuizzes.length + classAssignments.length;
-      const expectedSubmissions = totalAssessments * (cls.students?.length || 0);
-      const completionRate = expectedSubmissions > 0
-        ? calculatePercentage(totalSubmissions, expectedSubmissions)
-        : 0;
-
-      return {
-        classId: cls._id,
-        classname: cls.classname,
-        teacher: cls.teacher?.name || 'Not Assigned',
-        studentCount: cls.students?.length || 0,
-        quizCount: classQuizzes.length,
-        assignmentCount: classAssignments.length,
-        completionRate
-      };
+    // Class Performance Array
+    const classPerformanceMap = {};
+    classPerformanceData.forEach(c => {
+      classPerformanceMap[c._id.toString()] = { className: c.classname, totalScore: 0, count: 0 };
     });
 
-    const averageProgress = progressData.length > 0
-      ? parseFloat((progressData.reduce((sum, p) => sum + p.completionRate, 0) / progressData.length).toFixed(2))
-      : 0;
+    // Student Averages for Rankings
+    const studentAveragesMap = {};
+
+    allMarks.forEach(m => {
+      const classIdStr = m.classId?._id?.toString() || m.classId?.toString();
+      if (classIdStr && classPerformanceMap[classIdStr]) {
+        classPerformanceMap[classIdStr].totalScore += m.percentage;
+        classPerformanceMap[classIdStr].count += 1;
+      }
+
+      const sId = m.studentId?._id?.toString();
+      if (sId) {
+        if (!studentAveragesMap[sId]) {
+          studentAveragesMap[sId] = {
+            name: m.studentId.name,
+            className: m.classId?.classname || 'Unknown',
+            totalScore: 0,
+            count: 0
+          };
+        }
+        studentAveragesMap[sId].totalScore += m.percentage;
+        studentAveragesMap[sId].count += 1;
+      }
+    });
+
+    const classPerformance = Object.values(classPerformanceMap).map(c => ({
+      className: c.className,
+      avgScore: c.count > 0 ? parseFloat((c.totalScore / c.count).toFixed(2)) : 0
+    }));
+
+    const studentList = Object.values(studentAveragesMap).map(s => {
+      const score = s.count > 0 ? parseFloat((s.totalScore / s.count).toFixed(2)) : 0;
+      return {
+        name: s.name,
+        className: s.className,
+        score,
+        grade: getGradeFromPercentage(score)
+      };
+    }).sort((a, b) => b.score - a.score);
+
+    const topStudents = studentList.slice(0, 5);
+    const bottomStudents = studentList.slice(-5).reverse();
 
     return successResponse(res, 'Dashboard data retrieved', {
       statistics: {
-        totalClasses,
+        totalClasses: activeClasses,
         totalStudents,
-        totalTeachers: teachers,
-        totalQuizzes,
-        totalAssignments,
-        averageProgress
+        totalTeachers,
+        avgPerformance
       },
-      classOverview: progressData,
-      progressData
+      classPerformance,
+      topStudents,
+      bottomStudents
     });
 
   } catch (error) {
@@ -535,7 +532,7 @@ const getAllResults = async (req, res) => {
       highestScore: percentages.length > 0 ? Math.max(...percentages) : 0,
       lowestScore: percentages.length > 0 ? Math.min(...percentages) : 0,
       passRate: percentages.length > 0
-        ? parseFloat(((percentages.filter(p => p >= 50).length / percentages.length) * 100).toFixed(2))
+        ? parseFloat(((percentages.filter(p => p >= 60).length / percentages.length) * 100).toFixed(2))
         : 0,
       gradeA: percentages.filter(p => p >= 90).length,
       gradeB: percentages.filter(p => p >= 80 && p < 90).length,
@@ -599,16 +596,10 @@ const getAllStudents = async (req, res) => {
 
 // Helper function
 function getGradeFromPercentage(percentage) {
-  if (percentage >= 90) return 'A+';
-  if (percentage >= 85) return 'A';
-  if (percentage >= 80) return 'A-';
-  if (percentage >= 75) return 'B+';
-  if (percentage >= 70) return 'B';
-  if (percentage >= 65) return 'B-';
-  if (percentage >= 60) return 'C+';
-  if (percentage >= 55) return 'C';
-  if (percentage >= 50) return 'C-';
-  if (percentage >= 45) return 'D';
+  if (percentage >= 90) return 'A';
+  if (percentage >= 80) return 'B';
+  if (percentage >= 70) return 'C';
+  if (percentage >= 60) return 'D';
   return 'F';
 }
 

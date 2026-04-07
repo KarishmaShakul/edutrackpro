@@ -3,14 +3,15 @@ import Layout from '../../components/Layout'
 import DataTable from '../../components/DataTable'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
-import { FiSearch, FiDownload, FiFilter, FiTrendingUp, FiTrendingDown } from 'react-icons/fi'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts'
+import { FiSearch, FiDownload, FiFilter, FiTrendingUp, FiTrendingDown, FiAlertCircle } from 'react-icons/fi'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 
 export default function HeadResults() {
   const [results, setResults] = useState([])
   const [classes, setClasses] = useState([])
   const [selectedClass, setSelectedClass] = useState('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [stats, setStats] = useState(null)
 
@@ -53,17 +54,23 @@ export default function HeadResults() {
   }
 
   useEffect(() => {
-    fetchData()
+    fetchData(true)
+    const interval = setInterval(() => fetchData(false), 30000)
+    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
     if (selectedClass) {
-      fetchClassResults(selectedClass)
+      fetchClassResults(selectedClass, true)
+    } else {
+      fetchData(true)
     }
   }, [selectedClass])
 
-  const fetchData = async () => {
+  const fetchData = async (showLoad = true) => {
     try {
+      if (showLoad) setLoading(true)
+      setError(false)
       const [classesRes, resultsRes] = await Promise.all([
         api.get('/head/classes'),
         api.get('/head/results')
@@ -73,21 +80,27 @@ export default function HeadResults() {
       setClasses(classesData.classes || [])
       setResults(resultsData.results || [])
       setStats(resultsData.stats)
-    } catch (error) {
-      toast.error('Failed to load results')
+    } catch (err) {
+      setError(true)
+      if (showLoad) toast.error('Failed to load results')
     } finally {
-      setLoading(false)
+      if (showLoad) setLoading(false)
     }
   }
 
-  const fetchClassResults = async (classId) => {
+  const fetchClassResults = async (classId, showLoad = true) => {
     try {
+      if (showLoad) setLoading(true)
+      setError(false)
       const response = await api.get(`/head/classes/${classId}/results`)
       const data = response.data.data || response.data
       setResults(data.results || [])
       setStats(data.stats)
-    } catch (error) {
-      toast.error('Failed to load class results')
+    } catch (err) {
+      setError(true)
+      if (showLoad) toast.error('Failed to load class results')
+    } finally {
+      if (showLoad) setLoading(false)
     }
   }
 
@@ -150,21 +163,28 @@ export default function HeadResults() {
     }
   ]
 
-  // Prepare trend data
-  const trendData = [
-    { month: 'Jan', avgScore: 72 },
-    { month: 'Feb', avgScore: 75 },
-    { month: 'Mar', avgScore: 78 },
-    { month: 'Apr', avgScore: 74 },
-    { month: 'May', avgScore: 80 },
-    { month: 'Jun', avgScore: 82 }
-  ]
+  // Remove mocked trendData here
 
   if (loading) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center h-64 text-center">
+          <FiAlertCircle className="w-12 h-12 text-red-500 mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">Failed to Load Results</h2>
+          <p className="text-slate-400 mb-6">There was a problem communicating with the server.</p>
+          <button onClick={() => fetchData(true)} className="btn-primary">
+            Retry Connection
+          </button>
         </div>
       </Layout>
     )
@@ -254,49 +274,28 @@ export default function HeadResults() {
             </ResponsiveContainer>
           </div>
 
-          {/* Performance Trend */}
+          {/* Class Comparison */}
           <div className="bg-[#12121a] rounded-xl p-5 border border-[#1e1e2e]">
-            <h2 className="text-base font-medium text-white mb-4">Performance Trend</h2>
+            <h2 className="text-base font-medium text-white mb-4">Class Comparison</h2>
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={trendData}>
+              <BarChart data={classes.slice(0, 8).map(cls => ({
+                name: cls.classname,
+                avgScore: cls.avgScore || 0
+              }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
-                <XAxis dataKey="month" stroke="#404050" />
+                <XAxis dataKey="name" stroke="#404050" fontSize={12} />
                 <YAxis stroke="#404050" domain={[0, 100]} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#1a1a24', border: '1px solid #2a2a3a', borderRadius: '8px' }}
-                  labelStyle={{ color: '#fff' }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="avgScore" 
-                  stroke="#6366f1"
-                  strokeWidth={3}
-                  dot={{ fill: '#6366f1', strokeWidth: 2 }}
-                  name="Avg Score"
-                />
-              </LineChart>
+                <Bar dataKey="avgScore" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Avg Score" />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Class Comparison */}
-        <div className="bg-[#12121a] rounded-xl p-5 border border-[#1e1e2e] mb-8">
-          <h2 className="text-base font-medium text-white mb-4">Class Comparison</h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={classes.slice(0, 8).map(cls => ({
-              name: cls.classname,
-              avgScore: cls.avgScore || Math.floor(Math.random() * 30) + 60
-            }))}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
-              <XAxis dataKey="name" stroke="#404050" fontSize={12} />
-              <YAxis stroke="#404050" domain={[0, 100]} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#1a1a24', border: '1px solid #2a2a3a', borderRadius: '8px' }}
-              />
-              <Bar dataKey="avgScore" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Avg Score" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {/* Removed redundant Class Comparison block */}
+
 
         {/* Results Table */}
         <div className="mb-4 flex items-center justify-between">

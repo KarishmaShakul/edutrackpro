@@ -4,12 +4,13 @@ import DataTable from '../../components/DataTable'
 import Modal from '../../components/Modal'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
-import { FiBook, FiUsers, FiUser, FiEye, FiSearch, FiFilter } from 'react-icons/fi'
+import { FiBook, FiUsers, FiUser, FiEye, FiSearch, FiFilter, FiAlertCircle } from 'react-icons/fi'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 export default function HeadClasses() {
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedClass, setSelectedClass] = useState(null)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
@@ -17,18 +18,23 @@ export default function HeadClasses() {
   const [loadingDetails, setLoadingDetails] = useState(false)
 
   useEffect(() => {
-    fetchClasses()
+    fetchClasses(true)
+    const interval = setInterval(() => fetchClasses(false), 30000)
+    return () => clearInterval(interval)
   }, [])
 
-  const fetchClasses = async () => {
+  const fetchClasses = async (showLoad = true) => {
     try {
+      if (showLoad) setLoading(true)
+      setError(false)
       const response = await api.get('/head/classes')
       const data = response.data.data || response.data
       setClasses(data.classes || [])
-    } catch (error) {
-      toast.error('Failed to load classes')
+    } catch (err) {
+      setError(true)
+      if (showLoad) toast.error('Failed to load classes')
     } finally {
-      setLoading(false)
+      if (showLoad) setLoading(false)
     }
   }
 
@@ -124,7 +130,22 @@ export default function HeadClasses() {
     return (
       <Layout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center h-64 text-center">
+          <FiAlertCircle className="w-12 h-12 text-red-500 mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">Failed to Load Classes</h2>
+          <p className="text-slate-400 mb-6">There was a problem communicating with the server.</p>
+          <button onClick={() => fetchClasses(true)} className="btn-primary">
+            Retry Connection
+          </button>
         </div>
       </Layout>
     )
@@ -157,7 +178,7 @@ export default function HeadClasses() {
           <div className="bg-dark-100 rounded-xl p-4 border border-gray-800">
             <p className="text-gray-400 text-sm">Total Students</p>
             <p className="text-2xl font-bold text-blue-400">
-              {classes.reduce((sum, cls) => sum + (cls.students?.length || 0), 0)}
+              {new Set(classes.flatMap(cls => cls.students?.map(s => s._id || s))).size}
             </p>
           </div>
           <div className="bg-dark-100 rounded-xl p-4 border border-gray-800">
